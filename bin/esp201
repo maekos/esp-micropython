@@ -1,0 +1,72 @@
+#!/usr/bin/python3
+import sys
+import os
+import argparse
+
+docker_image = 'maekos/esp8266-dev'  # Using this docker image for development
+
+class ESP201Cli():
+
+    def __init__(self):
+        self.parser = argparse.ArgumentParser(prog='esp201')
+        self.subparser = self.parser.add_subparsers()
+
+        self._run = self.subparser.add_parser('run')
+        self._run.set_defaults(func=self.run)
+
+        self._build = self.subparser.add_parser('build')
+        self._build.set_defaults(func=self.build, build=True)
+
+        self._upload = self.subparser.add_parser('upload')
+        self._upload.add_argument('-d', '--device', required=True)
+        self._upload.set_defaults(func=self.upload)
+
+        self._micro = self.subparser.add_parser('micropython')
+        self._micro.add_argument('-d', '--device', default='/dev/ttyUSB0')
+        self._micro.add_argument('-b', '--baud', default='115200')
+        self._micro.set_defaults(func=self.micro)
+
+
+    @staticmethod
+    def build(args):
+        """ Build developmet enviroment."""
+        return 'docker pull {}'.format(docker_image)
+
+    @staticmethod
+    def micro(args):
+        """ Start micropython console.
+
+        The ESP-201 must be connected to UART. By default try to connect in port /dev/ttyUSB0
+        with baud rate of 115200.
+        """
+        return 'docker run --privileged --net=host -it --rm {} picocom {} -b{}'.format(docker_image, args.device, args.baud)
+
+    @staticmethod
+    def run(args):
+        """ Start a bash console in deveopment environment."""
+        return 'docker run --privileged -v {}:/root/projects -w /root/projects --net=host -it --rm {} /bin/bash'.format(os.path.abspath('.'), docker_image)
+
+    @staticmethod
+    def upload(args):
+        """ Upload a firmware esp8266-512k-20191220-v1.12.bin of micropython."""
+        return """docker run -v {path}:/root/projects -w /root/projects \
+                --privileged --net=host -it --rm {image} \
+                esptool.py --port {device}  write_flash --flash_size=detect 0 {file} \
+                """.format(path=os.path.abspath('.'),
+                           image=docker_image,
+                           device=args.device,
+                           file='v1.12/esp8266-512k-20191220-v1.12.bin')
+
+
+    def execute(self, cmd):
+        """ Execute selected command. """
+        if len(cmd) <= 0:
+            self.parser.print_help()
+        else:
+            args = self.parser.parse_args(cmd)
+            cmd = args.func(args)
+            os.system(cmd)
+
+if __name__ == "__main__":
+    app = ESP201Cli()
+    app.execute(sys.argv[1:])
