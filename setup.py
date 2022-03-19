@@ -8,7 +8,7 @@ setup(
     author_email='maekos@gmail.com',
     description='.',
     url='https://github/maekos/micropython',
-    scripts=['bin/esp201'],
+    scripts=['bin/esp'],
     package_dir={'':'.'},
     packages=['.'],
 )

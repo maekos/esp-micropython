@@ -8,7 +8,7 @@ docker_image = 'maekos/esp8266-dev'  # Using this docker image for development
 class ESP201Cli():
 
     def __init__(self):
-        self.parser = argparse.ArgumentParser(prog='esp201')
+        self.parser = argparse.ArgumentParser(prog='esp')
         self.subparser = self.parser.add_subparsers()
 
         self._run = self.subparser.add_parser('run')
@@ -17,8 +17,13 @@ class ESP201Cli():
         self._build = self.subparser.add_parser('build')
         self._build.set_defaults(func=self.build, build=True)
 
+        self._upload = self.subparser.add_parser('erase')
+        self._upload.add_argument('-d', '--device', default='/dev/ttyUSB0')
+        self._upload.set_defaults(func=self.erase)
+
         self._upload = self.subparser.add_parser('upload')
         self._upload.add_argument('-d', '--device', required=True)
+        self._upload.add_argument('-f', '--file', type=str, required=True)
         self._upload.set_defaults(func=self.upload)
 
         self._micro = self.subparser.add_parser('micropython')
@@ -26,6 +31,13 @@ class ESP201Cli():
         self._micro.add_argument('-b', '--baud', default='115200')
         self._micro.set_defaults(func=self.micro)
 
+
+    def erase(self, args):
+        return """docker run -v {path}:/root/projects -w /root/projects \
+                --privileged --net=host -it --rm {image} \
+                esptool.py --port {device}  erase_flash""".format(path=os.path.abspath('.'),
+                           image=docker_image,
+                           device=args.device)
 
     @staticmethod
     def build(args):
@@ -55,7 +67,7 @@ class ESP201Cli():
                 """.format(path=os.path.abspath('.'),
                            image=docker_image,
                            device=args.device,
-                           file='v1.12/esp8266-512k-20191220-v1.12.bin')
+                           file=args.file)
 
 
     def execute(self, cmd):
